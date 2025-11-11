@@ -1,0 +1,19 @@
+library(shiny)
+
+ui <- fluidPage(
+  dateRangeInput(
+    inputId = "dates",
+    label = "Select Date Range:",
+    start = Sys.Date() - 7,
+    end   = Sys.Date()
+  ),
+  textOutput("result")
+)
+
+server <- function(input, output) {
+  output$result <- renderText({
+    paste("You selected:", input$dates[1], "to", input$dates[2])
+  })
+}
+
+shinyApp(ui, server)

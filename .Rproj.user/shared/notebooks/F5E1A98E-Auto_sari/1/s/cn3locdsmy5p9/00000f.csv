@@ -1,0 +1,38 @@
+"0","pacman::p_load("
+"0","  here,"
+"0","  rio, "
+"0","  crosstable,             # generate tables "
+"0","  dplyr,                  # data processing and manipulation  "
+"0","  lubridate,              # date manipulation "
+"0","  skimr,"
+"0","  tidyverse,              # data management "
+"0","  writexl,"
+"0","  phonics,"
+"0","  stringdist,"
+"0","  janitor  ,"
+"0","  httr,"
+"0","  jsonlite,"
+"0","  RCurl,"
+"0","  writexl,"
+"0","  httr,"
+"0","  rstudioapi,"
+"0","  stringr"
+"0",")"
+"2","trying URL 'https://cran.rstudio.com/bin/windows/contrib/4.5/crosstable_0.8.2.zip'
+"
+"2","Content type 'application/zip'"
+"2"," length 621221 bytes (606 KB)
+"
+"2","downloaded 606 KB
+
+"
+"1","package ‘crosstable’ successfully unpacked and MD5 sums checked
+"
+"1","
+"
+"1",""
+"1","The downloaded binary packages are in
+	C:\Users\ESU-MoPH\AppData\Local\Temp\Rtmpy47XyL\downloaded_packages"
+"1",""
+"1","
+"

@@ -1,0 +1,499 @@
+---
+title: "ili_final_update"
+author: "Ahmad Tarrabeih"
+date: "2024-06-25"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+ 
+ 
+```{r import libraries, message=FALSE, warning=FALSE}
+pacman::p_load(
+  here,
+  rio,
+  data.table,             # fast to load large datasets
+  ggplot2,                # data visualization
+  crosstable,             # generate tables 
+  flextable,              # enhance table visualization
+  dplyr,                  # data processing and manipulation  
+  maps,                   # draw geographical maps
+  mapproj,                # draw geographical maps
+  lubridate,              # date manipulation
+  incidence,               # epidemiological curve,
+  janitor,                # data cleaning + quick tables
+  skimr,
+  tidyverse,               # data management
+  aweek,                  # date to week 
+  writexl,
+  readxl
+  
+)
+```
+
+
+```{r import ili, warning=FALSE}
+
+#######
+#######
+####### from line list use this ili_R_RMD_2024_event_final_June_2024 as csv  code
+#######
+#######
+
+ili = import(here("input","ili.csv")) %>% clean_names()
+lbn_c = import(here("input","lbn_c.xlsx"))
+country_code  = import(here("input","country_code.xlsx"))
+
+
+
+
+ 
+# ili[] <- lapply(ili, function(x) if(is.logical(x)) as.integer(x) else x)
+# ili[] <- lapply(ili, function(x) as.character(x))
+
+```
+
+
+```{r date format}
+date_format = "%d/%m/%Y"
+```
+
+
+```{r}
+#Country
+Country = "Lebanon"
+#Site 
+Site =  substr(ili$organisation_unit_name,1,6)
+
+# Governorate - site 
+sub = substr( ili$organisation_unit_name,1,2)
+
+sub_caza =
+ifelse(sub=="AK","Akkar",
+ifelse(sub=="AL","Aleyh",
+ifelse(sub=="BD","Baabda",
+ifelse(sub=="BL","Baalbeck",
+ifelse(sub=="BT","Batroun",
+ifelse(sub=="BC","Becharreh",
+ifelse(sub=="BR","Beirut",
+ifelse(sub=="WB","Beqaa Gharby",
+ifelse(sub=="BJ","Bint Jbeil",
+ifelse(sub=="CH","Chouf",
+ifelse(sub=="HS","Hasbaya",
+ifelse(sub=="HR","Hermel",
+ifelse(sub=="JB","Jbeil",
+ifelse(sub=="JZ","Jezzine",
+ifelse(sub=="KW","Kesrwan",
+ifelse(sub=="KR","Koura",
+ifelse(sub=="MR","Marjeoun",
+ifelse(sub=="MT","Matn",
+ifelse(sub=="MD","Mineh Danieh",
+ifelse(sub=="NB","Nabatieh",
+ifelse(sub=="RS","Rashaya",
+ifelse(sub=="SD","Saida",
+ifelse(sub=="SR","Sour",
+ifelse(sub=="TR","Tripoli",
+ifelse(sub=="ZH","Zahleh",
+ifelse(sub=="ZG","Zgharta","UN"))))))))))))))))))))))))))
+Governorate = lbn_c$province[ match(sub_caza, lbn_c$caza) ] #match
+
+#Nationailty 
+Nationailty =   country_code$Country[ match( ili$tea_ili_nationality,country_code$Alpha_3_code) ]
+Nationailty = sub(c(", State of"), "", Nationailty)
+Nationailty = sub(c(" Arab Republic"), "", Nationailty)
+
+Nationailty = recode(
+  Nationailty,
+  "Bangladesh"="Bangladeshi",
+  "Belarus"="Belarusian",
+  "Egypt"="Egyptian",
+  "Ethiopia"= "Ethiopian",
+  "Ghana" = "Ghanaian",
+  "Iraq" = "Iraqi",
+  "Lebanon" = "Lebanese",
+  "Palestine" = "Palestinian",
+  "Romania" = "Romanian",
+  "Sri Lanka" = "Sri Lankan",
+  "Sudan (the)" = "Sudanese",
+  "Syrian Arab Republic" = "Syrian",
+  "Turkey" = "Turkish",
+  "Ukraine" = "Ukrainian",
+  "Philippines (the)" = "Filipino",
+  )
+
+ 
+
+Nationailty[Nationailty=="Philippines"] = NA
+
+# Gender = ifelse(ili$tea_ili_gender=="Male [1]","Male",ifelse(ili$tea_ili_gender=="Female [2]","Female",NA))
+Gender = ifelse(ili$tea_ili_gender=="1","Male",ifelse(ili$tea_ili_gender=="2","Female",NA))
+
+Telephone = NA
+Address = NA
+
+#BirthDate
+BirthDate = format(as.Date(substr(ili$tea_ili_date_of_birth, 1, 10), format = "%Y-%m-%d"), date_format)
+
+
+# Convert the dates to Date objects
+enroll_date <- as.Date(ili$date_of_specimen_collection)
+date_of_birth <- as.Date(substr(ili$tea_ili_date_of_birth, 1, 10))
+
+# Calculate the interval between the dates
+interval <- interval(date_of_birth, enroll_date)
+
+# Convert the interval to a period
+period <- as.period(interval)
+
+# Extract the number of years and months
+AgeYear <- period@year
+AgeMonths <- period@month
+  
+
+
+#AddressGovernorate - patient locality 
+AddressGovernorate = lbn_c$province[ match(ili$tea_ili_caza_of_residence, lbn_c$caza_code) ]
+
+# District 
+District = lbn_c$caza[ match(ili$tea_ili_caza_of_residence, lbn_c$caza_code) ]
+
+
+#FirstInterviewDate
+FirstInterviewDate =  format(as.Date(substr(ili$de_li_date_specimen_collection, 1, 10), format = "%Y-%m-%d"), date_format)
+
+#SymptomOnsetDate
+SymptomOnsetDate = format(as.Date(substr(ili$de_li_date_of_symptoms, 1, 10), format = "%Y-%m-%d"), date_format)
+
+
+#HospitalId 
+HospitalId = ili$tea_ili_local_id
+
+
+#Temperature
+Temperature = NA
+
+
+#Pregnancy
+Pregnancy =  ifelse(ili$de_li_underc_pregnancy=="1","Yes",ifelse(ili$de_li_underc_pregnancy=="0","No",NA))
+ 
+ 
+# VaccinationForInfluenzaLast6months
+  VaccinationForInfluenzaLast6months = ifelse(ili$tea_ili_flu_vaccine_6months==1 ,"Yes", ifelse(ili$tea_ili_flu_vaccine_6months==0,"No","Unknown"))
+
+# ReceiveInfluenzaAntiviralDrugsLast14days
+
+ReceiveInfluenzaAntiviralDrugsLast14days = ifelse(ili$de_li_antiviral==1 ,"Yes", ifelse(ili$de_li_antiviral==0,"No","Unknown"))
+
+# ChronicMedicalConditions (Comma Seperated)
+ili$de_li_underc_diabetes[ili$de_li_underc_diabetes == "1"] <- "Diabetes,"
+# ili$de_li_underc_cancer[ili$de_li_underc_cancer == "1"] <- "Cancer,"
+ili$de_li_underc_liver[ili$de_li_underc_liver == "1"] <- "Chronic liver disease,"
+ili$de_li_underc_lung[ili$de_li_underc_lung == "1"] <- "Asthma,"
+ili$de_li_underc_hematology[ili$de_li_underc_hematology == "1"] <- "Chronic hematological disorder,"
+ili$de_li_underc_kidney[ili$de_li_underc_kidney == "1"] <- "Chronic kidney disease,"
+ili$de_li_underc_cardiovasc[ili$de_li_underc_cardiovasc == "1"] <- "Heart disease,"
+ili$de_li_underc_other[ili$de_li_underc_other == "1"] <- "Other"
+
+# Combine all the relevant columns
+ChronicMedicalConditions <- paste(ili$de_li_underc_diabetes,
+                                  # ili$de_li_underc_cancer,
+                                  ili$de_li_underc_liver,
+                                  ili$de_li_underc_lung,
+                                  ili$de_li_underc_hematology,
+                                  ili$de_li_underc_kidney,
+                                  ili$de_li_underc_cardiovasc,
+                                  ili$de_li_underc_other, 
+                                  sep = "")
+
+ 
+ChronicMedicalConditions = gsub("NA", "", ChronicMedicalConditions) # remove NA from string
+ChronicMedicalConditions = gsub("0", "", ChronicMedicalConditions) # remove 0 from string 
+ChronicMedicalConditions <- sub(",\\s*$", "", ChronicMedicalConditions)
+
+
+# Lab_DateSpecimenCollected
+Lab_DateSpecimenCollected = format(as.Date(substr(ili$de_li_date_specimen_collection, 1, 10), format = "%Y-%m-%d"), date_format)
+
+# Lab_DateOfShipment
+Lab_DateOfShipment = format(as.Date(substr(ili$de_li_date_of_reception, 1, 10), format = "%Y-%m-%d"), date_format)  
+
+# Lab_DateLabReceivedSpecimen
+Lab_DateLabReceivedSpecimen = format(as.Date(substr(ili$de_li_date_of_reception, 1, 10), format = "%Y-%m-%d"), date_format)   
+
+# Lab_OropharyngealSpecimen
+Lab_OropharyngealSpecimen = ifelse(ili$de_li_type_of_specimen_collection=="13" | ili$de_li_type_of_specimen_collection=="12","Yes","No")
+
+# Lab_NasopharyngealSpecimen
+Lab_NasopharyngealSpecimen = ifelse(ili$de_li_type_of_specimen_collection=="11" | ili$de_li_type_of_specimen_collection=="12","Yes","No")
+
+# Lab_BloodSpecimen
+Lab_BloodSpecimen = NA 
+
+#Lab_SpecimenOther 
+Lab_SpecimenOther= ifelse(ili$de_li_type_of_specimen_collection=="14" | ili$de_li_type_of_specimen_collection=="15" | ili$de_li_type_of_specimen_collection=="16" | ili$de_li_type_of_specimen_collection=="17" | ili$de_li_type_of_specimen_collection=="91" | ili$de_li_type_of_specimen_collection=="21", "Yes", "No")
+
+
+#Lab_DateResultsReported
+Lab_DateResultsReported = format(as.Date(substr(ili$de_li_date_of_result, 1, 10), format = "%Y-%m-%d"), date_format)
+
+# Lab_Comments
+Lab_Comments = NA
+# LabResult
+influ = ili$de_li_influenza_classification
+covid  = ili$de_li_covid_classification
+rsv = ili$de_ili_pcr_rsv_classification # ili$de_ili_pcr_result_rsv
+ 
+influ <- dplyr::recode(
+  as.character(ili$de_li_influenza_classification), 
+  "a" = "influenza: a",
+  "ah1" = "Influenza: ah1",
+  "ah1ah3" = "influenza: ah1+ah3",
+  "ah3" = "influenza: ah3",
+  "ah5" = "influenza: ah5",
+  "ah7" = "influenza: ah7",
+  "b" = "influenza: b",
+  "bv" = "influenza: b victoria",
+  "by" = "influenza: b yamagata",
+  "2" = "Negative",
+  "9" = "Not tested",
+  "8" = "Other",
+  .default = NA_character_
+)
+
+
+
+covid = dplyr::recode(
+  as.character(covid),
+  "1" = "Positive [1]",
+  "2" = "Negative [2]",
+  "3" = "Border-Line [3]",
+  "4" = "Inadequate Sample [4",
+    .default = NA_character_
+
+)
+
+rsv  = dplyr::recode(
+  as.character(rsv),
+  "0" = "0_negative",
+  "1" = "1_positive",
+  "9" = "9_not processed",
+    .default = NA_character_
+
+)
+
+LabResult <- ifelse(
+  rsv %in% c("1_positive") |
+    covid %in% c("Positive [1]") |
+    influ %in% c(
+      "influenza: a", "Influenza: ah1", "influenza: ah3", "influenza: ah5",
+      "influenza: ah7", "influenza: b", "influenza: b yamagata",
+      "influenza: b victoria", "influenza: ah1+ah3", "Other"
+    ), "Positive",
+  ifelse(
+    (influ == "Negative" & covid == "Negative [2]") | rsv != "1_positive",
+    "Negative",
+    ifelse(
+      influ == "Not tested" & covid == "Inadequate Sample [4" & rsv == "9_not processed",
+      "Not tested",
+      NA
+    )
+  )
+)
+# PositiveViruses (Comma Seperated)
+influ <- dplyr::recode(
+  as.character(ili$de_li_influenza_classification), 
+  "a" = "Not-subtyped",
+  "ah1" = "(H1N1)pdm009",
+  "ah1ah3" = "Mixed",
+  "ah3" = "(H3N2)",
+  "ah5" = "(H5N1)", 
+  "b" = "Lineage not determined",
+  "bv" = "Victoria lineage",
+  "by" = "Yamagata lineage",  
+  .default = NA_character_
+)
+influ[influ==2] = NA #Negative
+influ[influ==9] = NA #Not Tested
+influ[influ==1] = NA # error dictionary
+
+
+
+# PositiveVirusesILI = character(nrow(ili))
+# for (i in 1:nrow(ili) ){
+#   tested_virus_list <- character()
+#   
+#   if (LabResult[i] == "Positive" && !is.na(influ[i]) && influ[i] != "Not tested" && influ[i] != "Negative") {
+#     tested_virus_list <- c(tested_virus_list, influ[i])
+#   }
+#   
+#   if (LabResult[i] == "Positive" && !is.na(covid[i]) && covid[i]  == "Positive [1]") {
+#     tested_virus_list <- c(tested_virus_list, "COVID-19")
+#   }
+#   
+#   if (LabResult[i] == "Positive" && !is.na(rsv[i]) && rsv[i] == "1_positive") {
+#     tested_virus_list <- c(tested_virus_list, "RSV")
+#   }
+#   PositiveVirusesILI[i] <- paste(tested_virus_list, collapse = ",")  
+#  
+# }
+#  PositiveViruses=  PositiveVirusesILI
+
+PositiveVirusesILI <- character(nrow(ili))
+
+for (i in 1:nrow(ili)) {
+  tested_virus_list <- character()
+  
+  # Check if LabResult[i] is not NA before checking its value
+  if (!is.na(LabResult[i]) && LabResult[i] == "Positive") {
+    
+    if (!is.na(influ[i]) && influ[i] != "Not tested" && influ[i] != "Negative") {
+      tested_virus_list <- c(tested_virus_list, influ[i])
+    }
+    
+    if (!is.na(covid[i]) && covid[i] == "Positive [1]") {
+      tested_virus_list <- c(tested_virus_list, "COVID-19")
+    }
+    
+    if (!is.na(rsv[i]) && rsv[i] == "1_positive") {
+      tested_virus_list <- c(tested_virus_list, "RSV")
+    }
+  }
+  
+  PositiveVirusesILI[i] <- paste(tested_virus_list, collapse = ",")
+}
+
+PositiveViruses <- PositiveVirusesILI
+
+ 
+# HistoryTravel
+HistoryTravel = ifelse(ili$de_li_travel=="1","Yes",ifelse(ili$de_li_travel=="0","No","Unknown"))
+
+# HistoryTravel_Where
+HistoryTravel_Where = NA
+
+# HistoryTravel_When
+HistoryTravel_When = NA
+
+# TestedViruses (Comma Seperated)
+
+VirusName_RSV = dplyr::recode(
+         as.character( ili$de_ili_pcr_rsv_classification),#ili$de_ili_pcr_result_rsv,
+          "0" = "negative",
+          "1" = "positive",
+          "9" = "not processed"
+        )
+
+ 
+ 
+TestedViruses= ifelse(VirusName_RSV=="negative" | VirusName_RSV=="positive" ,"Not-subtyped,COVID-19,RSV","Not-subtyped,COVID-19")
+ 
+ # TestedViruses= ifelse(VirusName_RSV=="negative" | VirusName_RSV=="positive" & (!is.na(VirusName_RSV)),"Not-subtyped,COVID-19,RSV","Not-subtyped,COVID-19")
+
+TestedViruses= ifelse((LabResult=="Negative" | LabResult=="Positive") & is.na(VirusName_RSV),"Not-subtyped,COVID-19",TestedViruses)
+ 
+influ <- dplyr::recode(
+  as.character(ili$de_li_influenza_classification), 
+  "a" = "Not-subtyped",
+  "ah1" = "(H1N1)pdm009",
+  "ah1ah3" = "Mixed",
+  "ah3" = "(H3N2)",
+  "ah5" = "(H5N1)", 
+  "b" = "Lineage not determined",
+  "bv" = "Victoria lineage",
+  "by" = "Yamagata lineage",  
+)
+
+influ[influ==2] = NA #Negative
+influ[influ==9] = NA #Not Tested
+influ[influ==1] = NA # error dictionary
+
+TestedViruses=ifelse(influ %in% c("(H1N1)pdm009", "Mixed", "(H3N2)", "(H5N1)", "Lineage not determined", "Victoria lineage", "Yamagata lineage"),str_replace(TestedViruses ,"Not-subtyped", influ), TestedViruses  )
+  
+# DailySmoker
+DailySmoker = ifelse(ili$de_li_smoker=="1","Yes",ifelse(ili$de_li_smoker=="0","No","Unknown"))
+# NationalId
+ NationalId=NA
+```
+
+```{r District recoding }
+District <- recode(District, 
+   "Matn"="Metn",
+   "Beqaa Gharby" = "West Bekaa",
+   "Zgharta" = "Zghorta" )
+
+District[District=="Unspecified"]=NA
+```
+ 
+ 
+```{r}
+final_ili  = data.frame(
+Country,
+Governorate,
+Site,
+Nationailty,
+Gender,
+Telephone,
+Address,
+BirthDate,
+AgeYear,
+AgeMonths,
+AddressGovernorate,
+District,
+FirstInterviewDate,
+SymptomOnsetDate,
+HospitalId,
+Temperature,
+Pregnancy,
+VaccinationForInfluenzaLast6months,
+ReceiveInfluenzaAntiviralDrugsLast14days,
+ChronicMedicalConditions,
+Lab_DateSpecimenCollected,
+Lab_DateOfShipment,
+Lab_DateLabReceivedSpecimen,
+Lab_OropharyngealSpecimen,
+Lab_NasopharyngealSpecimen,
+Lab_BloodSpecimen,
+Lab_SpecimenOther,
+Lab_DateResultsReported,
+Lab_Comments,
+LabResult,
+PositiveViruses,
+HistoryTravel,
+HistoryTravel_Where,
+HistoryTravel_When,
+TestedViruses,
+DailySmoker,
+NationalId
+
+)
+```
+
+```{r}
+print(nrow(final_ili))
+sites_to_keep_ili <- c("AKD078", "BRD017", "BRH602", "MTD019", 
+                   "BDD012", "BJD032", "TRD057", "ZGD024", "ZHD037")
+
+ 
+final_ili <- subset(final_ili, Site %in% sites_to_keep_ili )
+print(nrow(final_ili))
+
+ 
+final_ili$AddressGovernorate[final_ili$AddressGovernorate=="Baalbeck - Hermel"] = "Baalbeck-Hermel" 
+final_ili$AddressGovernorate[final_ili$AddressGovernorate=="Unspecified"] = NA
+ 
+
+names(final_ili)[names(final_ili) == "ChronicMedicalConditions"] <- "ChronicMedicalConditions (Comma Seperated)"
+names(final_ili)[names(final_ili) == "PositiveViruses"] <- "PositiveViruses (Comma Seperated)"
+names(final_ili)[names(final_ili) == "TestedViruses"] <- "TestedViruses (Comma Seperated)"
+
+ 
+```
+
+
+```{r}
+today = Sys.Date()
+write_xlsx(final_ili, path = here("output", paste0("ili_final_", today, "_update.xlsx")))
+```
+
