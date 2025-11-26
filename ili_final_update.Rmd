@@ -497,3 +497,9 @@ today = Sys.Date()
 write_xlsx(final_ili, path = here("output", paste0("ili_final_", today, "_update.xlsx")))
 ```
 
+
+
+```{r test empty values }
+test = filter(select(ili,tea_ili_idnum,tea_ili_local_id,de_li_date_of_reception,de_li_date_of_result,de_li_influenza_classification,de_li_covid_classification,de_ili_pcr_rsv_classification ),is.na(de_li_date_of_reception) )
+```
+
